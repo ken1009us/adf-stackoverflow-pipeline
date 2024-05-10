@@ -1,0 +1,77 @@
+{
+	"name": "df_dataflow1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds_Json1",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds_Parquet1",
+						"type": "DatasetReference"
+					},
+					"name": "sink1",
+					"rejectedDataLinkedService": {
+						"referenceName": "ls_AzureBlobStorage1",
+						"type": "LinkedServiceReference"
+					}
+				}
+			],
+			"transformations": [
+				{
+					"name": "flatten1"
+				}
+			],
+			"scriptLines": [
+				"source(output(",
+				"          has_more as boolean,",
+				"          items as (accepted_answer_id as integer, answer_count as short, closed_date as integer, closed_reason as string, content_license as string, creation_date as integer, is_answered as boolean, last_activity_date as integer, last_edit_date as integer, link as string, owner as (accept_rate as short, account_id as integer, display_name as string, link as string, profile_image as string, reputation as short, user_id as integer, user_type as string), question_id as integer, score as short, tags as string[], title as string, view_count as integer)[],",
+				"          quota_max as short,",
+				"          quota_remaining as short",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     inferDriftedColumnTypes: true,",
+				"     ignoreNoFilesFound: false,",
+				"     documentForm: 'documentPerLine') ~> source1",
+				"source1 foldDown(unroll(items),",
+				"     mapColumn(",
+				"          accepted_answer_id = items.accepted_answer_id,",
+				"          answer_count = items.answer_count,",
+				"          closed_date = items.closed_date,",
+				"          closed_reason = items.closed_reason,",
+				"          content_license = items.content_license,",
+				"          creation_date = items.creation_date,",
+				"          is_answered = items.is_answered,",
+				"          last_activity_date = items.last_activity_date,",
+				"          last_edit_date = items.last_edit_date,",
+				"          link = items.link,",
+				"          owner = items.owner,",
+				"          question_id = items.question_id,",
+				"          score = items.score,",
+				"          tags = items.tags,",
+				"          title = items.title,",
+				"          view_count = items.view_count",
+				"     ),",
+				"     skipDuplicateMapInputs: false,",
+				"     skipDuplicateMapOutputs: false) ~> flatten1",
+				"flatten1 sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     format: 'parquet',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     outputAssertFailedRows: true,",
+				"     assertFailure_container: 'quarintine',",
+				"     assertFailure_folderPath: 'api') ~> sink1"
+			]
+		}
+	}
+}

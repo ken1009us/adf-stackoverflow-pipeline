@@ -1,0 +1,67 @@
+{
+	"name": "pl_first_master",
+	"properties": {
+		"activities": [
+			{
+				"name": "ingest",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_first_ingest",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"pip_tag": {
+							"value": "@pipeline().parameters.mpip_tag",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "transformation",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "ingest",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_first_transformation",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"pip_tag": {
+							"value": "@pipeline().parameters.mpip_tag",
+							"type": "Expression"
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"mpip_tag": {
+				"type": "string",
+				"defaultValue": "python"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2024-05-10T19:41:38Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
