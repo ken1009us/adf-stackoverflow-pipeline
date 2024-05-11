@@ -120,7 +120,8 @@
 				"type": "array",
 				"defaultValue": [
 					"python",
-					"java"
+					"java",
+					"databricks"
 				]
 			},
 			"mpip_union_folder": {
