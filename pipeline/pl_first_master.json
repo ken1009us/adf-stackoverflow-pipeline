@@ -56,8 +56,11 @@
 		],
 		"parameters": {
 			"mpip_tag": {
-				"type": "string",
-				"defaultValue": "python"
+				"type": "array",
+				"defaultValue": [
+					"python",
+					"java"
+				]
 			}
 		},
 		"annotations": [],
