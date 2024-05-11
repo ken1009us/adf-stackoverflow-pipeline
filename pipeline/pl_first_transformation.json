@@ -3,51 +3,6 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "flowFromLandingToBronze",
-				"type": "ExecuteDataFlow",
-				"dependsOn": [
-					{
-						"activity": "Delete1",
-						"dependencyConditions": [
-							"Completed"
-						]
-					}
-				],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"dataflow": {
-						"referenceName": "df_dataflow1",
-						"type": "DataFlowReference",
-						"datasetParameters": {
-							"source1": {
-								"dsp_folder": {
-									"value": "@pipeline().parameters.pip_tag",
-									"type": "Expression"
-								}
-							},
-							"sink1": {
-								"dsp_folder": {
-									"value": "@pipeline().parameters.pip_tag",
-									"type": "Expression"
-								}
-							}
-						}
-					},
-					"compute": {
-						"coreCount": 8,
-						"computeType": "General"
-					},
-					"traceLevel": "Fine"
-				}
-			},
-			{
 				"name": "Delete1",
 				"type": "Delete",
 				"dependsOn": [],
@@ -64,10 +19,7 @@
 						"referenceName": "ds_Parquet1",
 						"type": "DatasetReference",
 						"parameters": {
-							"dsp_folder": {
-								"value": "@pipeline().parameters.pip_tag",
-								"type": "Expression"
-							}
+							"dsp_folder": " "
 						}
 					},
 					"logStorageSettings": {
@@ -81,13 +33,157 @@
 					"storeSettings": {
 						"type": "AzureBlobStorageReadSettings",
 						"recursive": true,
+						"wildcardFileName": " ",
 						"enablePartitionDiscovery": false
 					}
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Delete1",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.pip_tag",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "flowFromLandingToBronze_copy1",
+							"type": "ExecuteDataFlow",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataflow": {
+									"referenceName": "df_dataflow1",
+									"type": "DataFlowReference",
+									"datasetParameters": {
+										"source1": {
+											"dsp_folder": {
+												"value": "@item()",
+												"type": "Expression"
+											}
+										},
+										"sink1": {
+											"dsp_folder": {
+												"value": "@item()",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								"compute": {
+									"coreCount": 8,
+									"computeType": "General"
+								},
+								"traceLevel": "Fine"
+							}
+						},
+						{
+							"name": "Copy data1",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "flowFromLandingToBronze_copy1",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "ParquetSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true,
+										"wildcardFolderPath": {
+											"value": "@item()",
+											"type": "Expression"
+										},
+										"wildcardFileName": "*.parquet",
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "ParquetReadSettings"
+									}
+								},
+								"sink": {
+									"type": "ParquetSink",
+									"storeSettings": {
+										"type": "AzureBlobStorageWriteSettings",
+										"copyBehavior": "MergeFiles"
+									},
+									"formatSettings": {
+										"type": "ParquetWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ds_Parquet1",
+									"type": "DatasetReference",
+									"parameters": {
+										"dsp_folder": {
+											"value": "@item()",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ds_Parquet1",
+									"type": "DatasetReference",
+									"parameters": {
+										"dsp_folder": {
+											"value": "@pipeline().parameters.pip_union_folder",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
 				}
 			}
 		],
 		"parameters": {
 			"pip_tag": {
+				"type": "array"
+			},
+			"pip_union_folder": {
 				"type": "string"
 			}
 		},
