@@ -1,0 +1,185 @@
+{
+	"name": "pl_first_load",
+	"properties": {
+		"activities": [
+			{
+				"name": "loadDimTable",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "ParquetSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": {
+								"value": "@pipeline().parameters.pip_dim_folder",
+								"type": "Expression"
+							},
+							"wildcardFileName": "*.parquet",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "ParquetReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"tableOption": "autoCreate",
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_Parquet1_silver",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsp_folder": {
+								"value": "@pipeline().parameters.pip_dim_folder",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_AzureSqlTable1",
+						"type": "DatasetReference",
+						"parameters": {
+							"sql_schema": {
+								"value": "@pipeline().parameters.sql_schema",
+								"type": "Expression"
+							},
+							"sql_table": {
+								"value": "@pipeline().parameters.sql_table_dim",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "loadFactTable",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "loadDimTable",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "ParquetSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": {
+								"value": "@pipeline().parameters.pip_fact_folder",
+								"type": "Expression"
+							},
+							"wildcardFileName": "*.parquet",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "ParquetReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"writeBehavior": "insert",
+						"sqlWriterUseTableLock": false,
+						"tableOption": "autoCreate",
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_Parquet1_silver",
+						"type": "DatasetReference",
+						"parameters": {
+							"dsp_folder": {
+								"value": "@pipeline().parameters.pip_fact_folder",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_AzureSqlTable1",
+						"type": "DatasetReference",
+						"parameters": {
+							"sql_schema": {
+								"value": "@pipeline().parameters.sql_schema",
+								"type": "Expression"
+							},
+							"sql_table": {
+								"value": "@pipeline().parameters.sql_table_fact",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			}
+		],
+		"parameters": {
+			"pip_tags": {
+				"type": "string"
+			},
+			"sql_schema": {
+				"type": "string"
+			},
+			"sql_table_fact": {
+				"type": "string"
+			},
+			"sql_table_dim": {
+				"type": "string"
+			},
+			"pip_fact_folder": {
+				"type": "string"
+			},
+			"pip_dim_folder": {
+				"type": "string"
+			}
+		},
+		"annotations": []
+	}
+}

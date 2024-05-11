@@ -49,6 +49,67 @@
 						"pip_tag": {
 							"value": "@pipeline().parameters.mpip_tag",
 							"type": "Expression"
+						},
+						"pip_union_folder": {
+							"value": "@pipeline().parameters.mpip_union_folder",
+							"type": "Expression"
+						},
+						"pip_fact_folder": {
+							"value": "@pipeline().parameters.mpip_fact_folder",
+							"type": "Expression"
+						},
+						"pip_dim_folder": {
+							"value": "@pipeline().parameters.mpip_dim_folder",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "load",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "transformation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "pl_first_load",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"pip_tags": {
+							"value": "@pipeline().parameters.mpip_tag",
+							"type": "Expression"
+						},
+						"sql_schema": {
+							"value": "@pipeline().parameters.mpip_sql_schema",
+							"type": "Expression"
+						},
+						"sql_table_fact": {
+							"value": "@pipeline().parameters.mpip_sql_fact_table",
+							"type": "Expression"
+						},
+						"sql_table_dim": {
+							"value": "@pipeline().parameters.mpip_sql_dim_table",
+							"type": "Expression"
+						},
+						"pip_fact_folder": {
+							"value": "@pipeline().parameters.mpip_fact_folder",
+							"type": "Expression"
+						},
+						"pip_dim_folder": {
+							"value": "@pipeline().parameters.mpip_dim_folder",
+							"type": "Expression"
 						}
 					}
 				}
@@ -56,8 +117,35 @@
 		],
 		"parameters": {
 			"mpip_tag": {
+				"type": "array",
+				"defaultValue": [
+					"python",
+					"java"
+				]
+			},
+			"mpip_union_folder": {
 				"type": "string",
-				"defaultValue": "python"
+				"defaultValue": "union"
+			},
+			"mpip_fact_folder": {
+				"type": "string",
+				"defaultValue": "fact"
+			},
+			"mpip_dim_folder": {
+				"type": "string",
+				"defaultValue": "dim"
+			},
+			"mpip_sql_schema": {
+				"type": "string",
+				"defaultValue": "sof"
+			},
+			"mpip_sql_fact_table": {
+				"type": "string",
+				"defaultValue": "factQuestions"
+			},
+			"mpip_sql_dim_table": {
+				"type": "string",
+				"defaultValue": "dimOwners"
 			}
 		},
 		"annotations": [],
