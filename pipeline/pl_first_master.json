@@ -5,7 +5,28 @@
 			{
 				"name": "ingest",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "loggingpipelinestart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "set datafrom unix",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "set dateto unix",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -27,6 +48,8 @@
 			{
 				"name": "transformation",
 				"type": "ExecutePipeline",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "ingest",
@@ -68,6 +91,8 @@
 			{
 				"name": "load",
 				"type": "ExecutePipeline",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "transformation",
@@ -113,6 +138,140 @@
 						}
 					}
 				}
+			},
+			{
+				"name": "loggingpipelinestart",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "Insert into logging.pipelineRun (pipeline_run_id, pipeline_name, pipeline_start_time, pipeline_end_time, pipeline_status)\nValues(\n    '@{pipeline().RunId}',\n    '@{pipeline().Pipeline}',\n    GETUTCDATE(),\n    Null,\n    'Starting'\n)"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "loggingpipelineend",
+				"type": "Script",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "load",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "update logging.pipelineRun\nset\n    pipeline_end_time = GETUTCDATE(),\n    pipeline_status = '@{activity('load').status}'\nwhere pipeline_run_id = '@{pipeline().RunId}'\nand pipeline_status = 'Starting'"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "select pipeline_start_time\nfrom logging.vPipelineRun\nwhere pipeline_name = '@{pipeline().Pipeline}'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_AzureSqlTable1",
+						"type": "DatasetReference",
+						"parameters": {
+							"sql_schema": {
+								"value": "@pipeline().parameters.mpip_sql_logging_schema",
+								"type": "Expression"
+							},
+							"sql_table": {
+								"value": "@pipeline().parameters.mpip_sql_logging_view",
+								"type": "Expression"
+							}
+						}
+					}
+				}
+			},
+			{
+				"name": "set datafrom unix",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": []
+			},
+			{
+				"name": "set dateto unix",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "Todate",
+					"value": "@(div(sub(ticks(utcNow()), ticks(\"1970-01-01\")), 10000000))"
+				}
 			}
 		],
 		"parameters": {
@@ -147,6 +306,19 @@
 			"mpip_sql_dim_table": {
 				"type": "string",
 				"defaultValue": "dimOwners"
+			},
+			"mpip_sql_logging_schema": {
+				"type": "string",
+				"defaultValue": "logging"
+			},
+			"mpip_sql_logging_view": {
+				"type": "string",
+				"defaultValue": "vpipelinerun"
+			}
+		},
+		"variables": {
+			"Todate": {
+				"type": "String"
 			}
 		},
 		"annotations": [],
