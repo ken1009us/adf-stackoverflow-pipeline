@@ -142,6 +142,8 @@
 			{
 				"name": "loggingpipelinestart",
 				"type": "Script",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Lookup1",
@@ -257,7 +259,11 @@
 					"secureOutput": false,
 					"secureInput": false
 				},
-				"userProperties": []
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "FromDate",
+					"value": "@{div(sub(ticks(@activity('Lookup1').output.firstrow.pipeline_start_time), ticks('1970-01-01')), 10000000)}"
+				}
 			},
 			{
 				"name": "set dateto unix",
@@ -269,8 +275,8 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"variableName": "Todate",
-					"value": "@(div(sub(ticks(utcNow()), ticks(\"1970-01-01\")), 10000000))"
+					"variableName": "ToDate",
+					"value": "@{div(sub(ticks(utcNow()), ticks('1970-01-01')), 10000000)}"
 				}
 			}
 		],
@@ -317,7 +323,10 @@
 			}
 		},
 		"variables": {
-			"Todate": {
+			"ToDate": {
+				"type": "String"
+			},
+			"FromDate": {
 				"type": "String"
 			}
 		},
