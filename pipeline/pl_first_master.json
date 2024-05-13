@@ -5,8 +5,6 @@
 			{
 				"name": "ingest",
 				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "loggingpipelinestart",
@@ -41,6 +39,14 @@
 						"pip_tag": {
 							"value": "@pipeline().parameters.mpip_tag",
 							"type": "Expression"
+						},
+						"pip_fromDate": {
+							"value": "@variables('FromDate')",
+							"type": "Expression"
+						},
+						"pip_toDate": {
+							"value": "@variables('ToDate')",
+							"type": "Expression"
 						}
 					}
 				}
@@ -48,8 +54,6 @@
 			{
 				"name": "transformation",
 				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "ingest",
@@ -91,8 +95,6 @@
 			{
 				"name": "load",
 				"type": "ExecutePipeline",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "transformation",
@@ -142,8 +144,6 @@
 			{
 				"name": "loggingpipelinestart",
 				"type": "Script",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Lookup1",
@@ -177,8 +177,6 @@
 			{
 				"name": "loggingpipelineend",
 				"type": "Script",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "load",
@@ -247,8 +245,6 @@
 			{
 				"name": "set datafrom unix",
 				"type": "SetVariable",
-				"state": "Active",
-				"onInactiveMarkAs": "Succeeded",
 				"dependsOn": [
 					{
 						"activity": "Lookup1",
@@ -279,6 +275,36 @@
 				"typeProperties": {
 					"variableName": "ToDate",
 					"value": "@{div(sub(ticks(utcNow()), ticks('1970-01-01')), 10000000)}"
+				}
+			},
+			{
+				"name": "sendemail",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "load",
+						"dependencyConditions": [
+							"Skipped",
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": "https://prod-51.eastus.logic.azure.com:443/workflows/cb3cf83925b349a8bffdec051eb4bf6f/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=zYHINIl5wPzhhpiRwmcRAaZMPJKLPNb7weqs0wOjABM",
+					"body": {
+						"message": "The pipeline with run ID @{pipeline().RunId} is having an issue, please take a look",
+						"pipelineName": "@{pipeline().Pipeline}",
+						"receiver": "@{pipeline().parameters.receiver}"
+					}
 				}
 			}
 		],
@@ -322,6 +348,10 @@
 			"mpip_sql_logging_view": {
 				"type": "string",
 				"defaultValue": "vpipelinerun"
+			},
+			"receiver": {
+				"type": "string",
+				"defaultValue": "garfrom0726@gmail.com"
 			}
 		},
 		"variables": {
