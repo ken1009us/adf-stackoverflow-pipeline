@@ -5,7 +5,26 @@
 			{
 				"name": "ingest",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "loggingpipelinestart",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "set datafrom unix",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "set dateto unix",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -19,6 +38,14 @@
 					"parameters": {
 						"pip_tag": {
 							"value": "@pipeline().parameters.mpip_tag",
+							"type": "Expression"
+						},
+						"pip_fromDate": {
+							"value": "@variables('FromDate')",
+							"type": "Expression"
+						},
+						"pip_toDate": {
+							"value": "@variables('ToDate')",
 							"type": "Expression"
 						}
 					}
@@ -113,6 +140,172 @@
 						}
 					}
 				}
+			},
+			{
+				"name": "loggingpipelinestart",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "Insert into logging.pipelineRun (pipeline_run_id, pipeline_name, pipeline_start_time, pipeline_end_time, pipeline_status)\nValues(\n    '@{pipeline().RunId}',\n    '@{pipeline().Pipeline}',\n    GETUTCDATE(),\n    Null,\n    'Starting'\n)"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "loggingpipelineend",
+				"type": "Script",
+				"dependsOn": [
+					{
+						"activity": "load",
+						"dependencyConditions": [
+							"Completed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"linkedServiceName": {
+					"referenceName": "ls_AzureSqlDatabase1",
+					"type": "LinkedServiceReference"
+				},
+				"typeProperties": {
+					"scripts": [
+						{
+							"type": "Query",
+							"text": "update logging.pipelineRun\nset\n    pipeline_end_time = GETUTCDATE(),\n    pipeline_status = '@{activity('load').status}'\nwhere pipeline_run_id = '@{pipeline().RunId}'\nand pipeline_status = 'Starting'"
+						}
+					],
+					"scriptBlockExecutionTimeout": "02:00:00"
+				}
+			},
+			{
+				"name": "Lookup1",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "select pipeline_start_time\nfrom logging.vPipelineRun\nwhere pipeline_name = '@{pipeline().Pipeline}'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "ds_AzureSqlTable1",
+						"type": "DatasetReference",
+						"parameters": {
+							"sql_schema": {
+								"value": "@pipeline().parameters.mpip_sql_logging_schema",
+								"type": "Expression"
+							},
+							"sql_table": {
+								"value": "@pipeline().parameters.mpip_sql_logging_view",
+								"type": "Expression"
+							}
+						}
+					}
+				}
+			},
+			{
+				"name": "set datafrom unix",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Lookup1",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "FromDate",
+					"value": "@{div(sub(ticks(activity('Lookup1').output.firstrow.pipeline_start_time), ticks('1970-01-01')), 10000000)}"
+				}
+			},
+			{
+				"name": "set dateto unix",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "ToDate",
+					"value": "@{div(sub(ticks(utcNow()), ticks('1970-01-01')), 10000000)}"
+				}
+			},
+			{
+				"name": "sendemail",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "load",
+						"dependencyConditions": [
+							"Skipped",
+							"Failed"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"url": "https://prod-51.eastus.logic.azure.com:443/workflows/cb3cf83925b349a8bffdec051eb4bf6f/triggers/When_a_HTTP_request_is_received/paths/invoke?api-version=2016-10-01&sp=%2Ftriggers%2FWhen_a_HTTP_request_is_received%2Frun&sv=1.0&sig=zYHINIl5wPzhhpiRwmcRAaZMPJKLPNb7weqs0wOjABM",
+					"body": {
+						"message": "The pipeline with run ID @{pipeline().RunId} is having an issue, please take a look",
+						"pipelineName": "@{pipeline().Pipeline}",
+						"receiver": "@{pipeline().parameters.receiver}"
+					}
+				}
 			}
 		],
 		"parameters": {
@@ -120,7 +313,8 @@
 				"type": "array",
 				"defaultValue": [
 					"python",
-					"java"
+					"java",
+					"databricks"
 				]
 			},
 			"mpip_union_folder": {
@@ -146,6 +340,26 @@
 			"mpip_sql_dim_table": {
 				"type": "string",
 				"defaultValue": "dimOwners"
+			},
+			"mpip_sql_logging_schema": {
+				"type": "string",
+				"defaultValue": "logging"
+			},
+			"mpip_sql_logging_view": {
+				"type": "string",
+				"defaultValue": "vpipelinerun"
+			},
+			"receiver": {
+				"type": "string",
+				"defaultValue": "garfrom0726@gmail.com"
+			}
+		},
+		"variables": {
+			"ToDate": {
+				"type": "String"
+			},
+			"FromDate": {
+				"type": "String"
 			}
 		},
 		"annotations": [],

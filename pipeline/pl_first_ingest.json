@@ -62,6 +62,14 @@
 										"dsp_tag": {
 											"value": "@item()",
 											"type": "Expression"
+										},
+										"dsp_fromDate": {
+											"value": "@pipeline().parameters.pip_fromDate",
+											"type": "Expression"
+										},
+										"dsp_toDate": {
+											"value": "@pipeline().parameters.pip_toDate",
+											"type": "Expression"
 										}
 									}
 								}
@@ -124,6 +132,12 @@
 		"parameters": {
 			"pip_tag": {
 				"type": "array"
+			},
+			"pip_fromDate": {
+				"type": "string"
+			},
+			"pip_toDate": {
+				"type": "string"
 			}
 		},
 		"annotations": [],
